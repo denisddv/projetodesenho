@@ -61,9 +61,19 @@ async function loadCharacters() {
         const data = await response.json();
         
         console.log('Dados recebidos:', data);
+        console.log('Tipo de dados:', typeof data);
+        console.log('É array?', Array.isArray(data));
         
-        // Armazena os dados
-        allCharacters = data.docs || data;
+        // A API retorna um array diretamente, não um objeto com docs
+        if (Array.isArray(data)) {
+            allCharacters = data;
+        } else if (data.docs && Array.isArray(data.docs)) {
+            allCharacters = data.docs;
+        } else {
+            allCharacters = [];
+        }
+        
+        console.log('Total de personagens:', allCharacters.length);
         displayedCharacters = allCharacters;
         
         // Renderiza os personagens
@@ -87,10 +97,12 @@ function renderCharacters(characters) {
     // Limpa o container
     charactersContainer.innerHTML = '';
     
-    if (characters.length === 0) {
+    if (!characters || characters.length === 0) {
         charactersContainer.innerHTML = '<p class="no-results">Nenhum personagem encontrado.</p>';
         return;
     }
+    
+    console.log('Renderizando', characters.length, 'personagens');
     
     // Itera sobre cada personagem e cria um card
     characters.forEach((character, index) => {
@@ -104,17 +116,26 @@ function renderCharacters(characters) {
  * Demonstra o uso de createElement e appendChild
  */
 function createCharacterCard(character, index) {
+    console.log('Criando card para:', character);
+    
     // Cria o elemento principal do card
     const card = document.createElement('div');
     card.className = 'character-card';
-    card.style.animationDelay = `${index * 0.1}s`;
+    card.style.animationDelay = `${index * 0.05}s`;
     
     // Cria e adiciona a imagem
     const img = document.createElement('img');
     img.className = 'character-image';
-    img.src = character.imagen || 'https://via.placeholder.com/300x300?text=No+Image';
-    img.alt = character.Nombre || 'Personagem';
-    img.loading = 'lazy'; // Lazy loading para melhor performance
+    // Tenta diferentes possíveis nomes de propriedade da imagem
+    img.src = character.imagen || character.Imagen || character.image || 'https://via.placeholder.com/300x300?text=Sem+Imagem';
+    img.alt = character.Nombre || character.nombre || character.name || 'Personagem';
+    img.loading = 'lazy';
+    
+    // Adiciona tratamento de erro para imagem
+    img.onerror = function() {
+        this.src = 'https://via.placeholder.com/300x300?text=Simpsons';
+    };
+    
     card.appendChild(img);
     
     // Cria o container de informações
@@ -124,25 +145,27 @@ function createCharacterCard(character, index) {
     // Cria e adiciona o nome
     const name = document.createElement('h3');
     name.className = 'character-name';
-    name.textContent = character.Nombre || 'Nome desconhecido';
+    name.textContent = character.Nombre || character.nombre || character.name || 'Nome desconhecido';
     infoDiv.appendChild(name);
     
     // Cria e adiciona a ocupação (se existir)
-    if (character.Ocupacion) {
-        const occupation = document.createElement('p');
-        occupation.className = 'character-occupation';
-        occupation.textContent = `Ocupação: ${character.Ocupacion}`;
-        infoDiv.appendChild(occupation);
+    const occupation = character.Ocupacion || character.ocupacion || character.occupation;
+    if (occupation) {
+        const occupationP = document.createElement('p');
+        occupationP.className = 'character-occupation';
+        occupationP.textContent = `Ocupação: ${occupation}`;
+        infoDiv.appendChild(occupationP);
     }
     
     // Cria e adiciona a descrição (se existir)
-    if (character.Historia) {
+    const historia = character.Historia || character.historia || character.history || character.description;
+    if (historia) {
         const description = document.createElement('p');
         description.className = 'character-description';
         // Limita a descrição a 100 caracteres
-        const shortHistory = character.Historia.length > 100 
-            ? character.Historia.substring(0, 100) + '...' 
-            : character.Historia;
+        const shortHistory = historia.length > 100 
+            ? historia.substring(0, 100) + '...' 
+            : historia;
         description.textContent = shortHistory;
         infoDiv.appendChild(description);
     }
@@ -162,14 +185,19 @@ function createCharacterCard(character, index) {
  * Mostra detalhes do personagem em um alert (pode ser melhorado com um modal)
  */
 function showCharacterDetails(character) {
+    const nome = character.Nombre || character.nombre || character.name || 'Nome desconhecido';
+    const ocupacao = character.Ocupacion || character.ocupacion || character.occupation || 'Não informada';
+    const historia = character.Historia || character.historia || character.history || 'Não disponível';
+    const voz = character.VozOriginal || character.vozOriginal || character.voice || 'Não informada';
+    
     const details = `
-🎭 ${character.Nombre || 'Nome desconhecido'}
+🎭 ${nome}
 
-👔 Ocupação: ${character.Ocupacion || 'Não informada'}
+👔 Ocupação: ${ocupacao}
 
-📖 História: ${character.Historia || 'Não disponível'}
+📖 História: ${historia}
 
-🎤 Voz original: ${character.VozOriginal || 'Não informada'}
+🎤 Voz original: ${voz}
     `.trim();
     
     alert(details);
@@ -185,9 +213,9 @@ function handleSearch() {
         displayedCharacters = allCharacters;
     } else {
         displayedCharacters = allCharacters.filter(character => {
-            const name = (character.Nombre || '').toLowerCase();
-            const occupation = (character.Ocupacion || '').toLowerCase();
-            const history = (character.Historia || '').toLowerCase();
+            const name = (character.Nombre || character.nombre || '').toLowerCase();
+            const occupation = (character.Ocupacion || character.ocupacion || '').toLowerCase();
+            const history = (character.Historia || character.historia || '').toLowerCase();
             
             return name.includes(searchTerm) || 
                    occupation.includes(searchTerm) || 
