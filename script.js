@@ -1,104 +1,105 @@
-// Configuração da API
-const API_URL = 'https://apisimpsons.fly.dev/api/personajes?limit=50';
-const cardsContainer = document.getElementById('cards-container');
+// Seleção de elementos do DOM com verificação de existência
 const searchInput = document.getElementById('search-input');
-const filterSelect = document.getElementById('filter-select');
-const loadMoreBtn = document.getElementById('load-more');
+const searchButton = document.getElementById('search-button');
+const characterCards = document.getElementById('character-cards');
+const modal = document.getElementById('character-modal');
+const modalContent = document.getElementById('modal-character-info');
+const closeModal = document.querySelector('.close');
 
+// Variável para armazenar todos os personagens
 let allCharacters = [];
-let filteredCharacters = [];
-let currentPage = 0;
-const charactersPerPage = 12;
 
 // Função para buscar personagens da API
 async function fetchCharacters() {
     try {
-        const response = await fetch(API_URL);
+        const response = await fetch('https://apisimpsons.fly.dev/api/personajes?limit=50');
         const data = await response.json();
-        allCharacters = data;
-        filteredCharacters = [...allCharacters];
-        displayCharacters();
+        allCharacters = data.docs || data;
+        displayCharacters(allCharacters);
     } catch (error) {
         console.error('Erro ao buscar personagens:', error);
-        cardsContainer.innerHTML = '<p class="error">Erro ao carregar personagens. Tente novamente mais tarde.</p>';
+        if (characterCards) {
+            characterCards.innerHTML = '<p>Erro ao carregar personagens. Tente novamente mais tarde.</p>';
+        }
     }
 }
 
 // Função para exibir personagens
-function displayCharacters() {
-    const start = currentPage * charactersPerPage;
-    const end = start + charactersPerPage;
-    const charactersToShow = filteredCharacters.slice(start, end);
-
-    charactersToShow.forEach(character => {
-        const card = createCard(character);
-        cardsContainer.appendChild(card);
+function displayCharacters(characters) {
+    if (!characterCards) return;
+    
+    characterCards.innerHTML = '';
+    
+    if (characters.length === 0) {
+        characterCards.innerHTML = '<p>Nenhum personagem encontrado.</p>';
+        return;
+    }
+    
+    characters.forEach(character => {
+        const card = document.createElement('div');
+        card.className = 'character-card';
+        card.innerHTML = `
+            <img src="${character.imagen || 'placeholder.jpg'}" alt="${character.nombre || 'Personagem'}">
+            <h3>${character.nombre || 'Nome desconhecido'}</h3>
+        `;
+        card.addEventListener('click', () => showCharacterDetails(character));
+        characterCards.appendChild(card);
     });
-
-    // Controlar visibilidade do botão "Carregar Mais"
-    if (end >= filteredCharacters.length) {
-        loadMoreBtn.style.display = 'none';
-    } else {
-        loadMoreBtn.style.display = 'block';
-    }
 }
 
-// Função para criar um card de personagem
-function createCard(character) {
-    const card = document.createElement('div');
-    card.className = 'card';
+// Função para mostrar detalhes do personagem no modal
+function showCharacterDetails(character) {
+    if (!modal || !modalContent) return;
     
-    card.innerHTML = `
-        <img src="${character.imagem}" alt="${character.nome}">
-        <h3>${character.nome}</h3>
-        <p><strong>Ocupação:</strong> ${character.ocupacao || 'Não especificada'}</p>
-        <p><strong>Primeira aparição:</strong> ${character.primeiraAparicao || 'Não especificada'}</p>
+    modalContent.innerHTML = `
+        <img src="${character.imagen || 'placeholder.jpg'}" alt="${character.nombre || 'Personagem'}">
+        <h2>${character.nombre || 'Nome desconhecido'}</h2>
+        <p><strong>Ocupação:</strong> ${character.ocupacion || 'Desconhecida'}</p>
+        <p><strong>Primeira aparição:</strong> ${character.primera_aparicion || 'Desconhecida'}</p>
+        <p><strong>Dublador:</strong> ${character.doblador || 'Desconhecido'}</p>
     `;
-    
-    return card;
+    modal.style.display = 'block';
 }
 
-// Função de busca
-function searchCharacters() {
-    const searchTerm = searchInput.value.toLowerCase();
-    filteredCharacters = allCharacters.filter(character => 
-        character.nome.toLowerCase().includes(searchTerm)
-    );
-    resetDisplay();
-}
-
-// Função de filtro
+// Função para filtrar personagens
 function filterCharacters() {
-    const filterValue = filterSelect.value;
+    if (!searchInput) return;
     
-    if (filterValue === 'all') {
-        filteredCharacters = [...allCharacters];
-    } else {
-        filteredCharacters = allCharacters.filter(character => 
-            character.ocupacao && character.ocupacao.toLowerCase().includes(filterValue.toLowerCase())
-        );
-    }
-    
-    resetDisplay();
+    const searchTerm = searchInput.value.toLowerCase();
+    const filteredCharacters = allCharacters.filter(character => 
+        (character.nombre || '').toLowerCase().includes(searchTerm)
+    );
+    displayCharacters(filteredCharacters);
 }
 
-// Resetar exibição
-function resetDisplay() {
-    cardsContainer.innerHTML = '';
-    currentPage = 0;
-    displayCharacters();
+// Event Listeners com verificação de null
+if (searchButton) {
+    searchButton.addEventListener('click', filterCharacters);
 }
 
-// Carregar mais personagens
-function loadMore() {
-    currentPage++;
-    displayCharacters();
+if (searchInput) {
+    searchInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') {
+            filterCharacters();
+        }
+    });
 }
 
-// Event Listeners
-searchInput.addEventListener('input', searchCharacters);
-filterSelect.addEventListener('change', filterCharacters);
-loadMoreBtn.addEventListener('click', loadMore);
+if (closeModal) {
+    closeModal.addEventListener('click', () => {
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
 
-// Inicializar
+if (modal) {
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+// Carregar personagens ao iniciar
 fetchCharacters();
