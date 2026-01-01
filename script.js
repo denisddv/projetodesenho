@@ -1,105 +1,294 @@
-// Seleção de elementos do DOM com verificação de existência
-const searchInput = document.getElementById('search-input');
-const searchButton = document.getElementById('search-button');
-const characterCards = document.getElementById('character-cards');
-const modal = document.getElementById('character-modal');
-const modalContent = document.getElementById('modal-character-info');
-const closeModal = document.querySelector('.close');
+// Configuração da API
+const API_URL = 'https://apisimpsons.fly.dev/api/personajes?limit=50';
 
-// Variável para armazenar todos os personagens
+// Variáveis globais
 let allCharacters = [];
+let displayedCharacters = [];
 
-// Função para buscar personagens da API
-async function fetchCharacters() {
-    try {
-        const response = await fetch('https://apisimpsons.fly.dev/api/personajes?limit=50');
-        const data = await response.json();
-        allCharacters = data.docs || data;
-        displayCharacters(allCharacters);
-    } catch (error) {
-        console.error('Erro ao buscar personagens:', error);
-        if (characterCards) {
-            characterCards.innerHTML = '<p>Erro ao carregar personagens. Tente novamente mais tarde.</p>';
-        }
+// Elementos do DOM
+const charactersContainer = document.getElementById('characters');
+const loadingElement = document.getElementById('loading');
+const errorElement = document.getElementById('error');
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const retryBtn = document.getElementById('retryBtn');
+const totalCharactersElement = document.getElementById('totalCharacters');
+
+/**
+ * Função principal que inicializa a aplicação
+ */
+function init() {
+    console.log('Iniciando aplicação...');
+    loadCharacters();
+    setupEventListeners();
+}
+
+/**
+ * Configura os event listeners
+ */
+function setupEventListeners() {
+    if (searchBtn) {
+        searchBtn.addEventListener('click', handleSearch);
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
+    }
+    
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            hideError();
+            loadCharacters();
+        });
     }
 }
 
-// Função para exibir personagens
-function displayCharacters(characters) {
-    if (!characterCards) return;
-    
-    characterCards.innerHTML = '';
-    
-    if (characters.length === 0) {
-        characterCards.innerHTML = '<p>Nenhum personagem encontrado.</p>';
+/**
+ * Carrega os personagens da API usando Fetch
+ */
+async function loadCharacters() {
+    showLoading();
+    hideError();
+
+    try {
+        console.log('Fazendo requisição para API...');
+        
+        // Usando Fetch API para consumir dados
+        const response = await fetch(API_URL);
+        
+        // Verifica se a resposta foi bem-sucedida
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Converte a resposta para JSON
+        const data = await response.json();
+        
+        console.log('Dados recebidos:', data);
+        console.log('Tipo de dados:', typeof data);
+        console.log('É array?', Array.isArray(data));
+        
+        // A API pode retornar um array diretamente ou um objeto com docs
+        if (Array.isArray(data)) {
+            allCharacters = data;
+        } else if (data.docs && Array.isArray(data.docs)) {
+            allCharacters = data.docs;
+        } else {
+            allCharacters = [];
+        }
+        
+        console.log('Total de personagens:', allCharacters.length);
+        displayedCharacters = allCharacters;
+        
+        // Renderiza os personagens
+        renderCharacters(displayedCharacters);
+        updateStats();
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Erro ao carregar personagens:', error);
+        hideLoading();
+        showError();
+    }
+}
+
+/**
+ * Renderiza os cards de personagens dinamicamente
+ * Esta função cria elementos HTML usando JavaScript
+ */
+function renderCharacters(characters) {
+    if (!charactersContainer) {
+        console.error('Container de personagens não encontrado');
         return;
     }
     
-    characters.forEach(character => {
-        const card = document.createElement('div');
-        card.className = 'character-card';
-        card.innerHTML = `
-            <img src="${character.imagen || 'placeholder.jpg'}" alt="${character.nombre || 'Personagem'}">
-            <h3>${character.nombre || 'Nome desconhecido'}</h3>
-        `;
-        card.addEventListener('click', () => showCharacterDetails(character));
-        characterCards.appendChild(card);
+    // Limpa o container
+    charactersContainer.innerHTML = '';
+    
+    if (!characters || characters.length === 0) {
+        charactersContainer.innerHTML = '<p class="no-results">Nenhum personagem encontrado.</p>';
+        return;
+    }
+    
+    console.log('Renderizando', characters.length, 'personagens');
+    
+    // Itera sobre cada personagem e cria um card
+    characters.forEach((character, index) => {
+        const card = createCharacterCard(character, index);
+        charactersContainer.appendChild(card);
     });
 }
 
-// Função para mostrar detalhes do personagem no modal
+/**
+ * Cria um card de personagem usando DOM manipulation
+ * Demonstra o uso de createElement e appendChild
+ */
+function createCharacterCard(character, index) {
+    console.log('Criando card para:', character);
+    
+    // Cria o elemento principal do card
+    const card = document.createElement('div');
+    card.className = 'character-card';
+    card.style.animationDelay = `${index * 0.05}s`;
+    
+    // Cria e adiciona a imagem
+    const img = document.createElement('img');
+    img.className = 'character-image';
+    // IMPORTANTE: Prioriza "Imagen" com I maiúsculo (formato da API)
+    img.src = character.Imagen || character.imagen || character.image || 'https://via.placeholder.com/300x300?text=Sem+Imagem';
+    img.alt = character.Nombre || character.nombre || character.name || 'Personagem';
+    img.loading = 'lazy';
+    
+    // Adiciona tratamento de erro para imagem
+    img.onerror = function() {
+        this.src = 'https://via.placeholder.com/300x300?text=Simpsons';
+    };
+    
+    card.appendChild(img);
+    
+    // Cria o container de informações
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'character-info';
+    
+    // Cria e adiciona o nome
+    const name = document.createElement('h3');
+    name.className = 'character-name';
+    name.textContent = character.Nombre || character.nombre || character.name || 'Nome desconhecido';
+    infoDiv.appendChild(name);
+    
+    // Cria e adiciona a ocupação (se existir)
+    const occupation = character.Ocupacion || character.ocupacion || character.occupation;
+    if (occupation) {
+        const occupationP = document.createElement('p');
+        occupationP.className = 'character-occupation';
+        occupationP.textContent = `Ocupação: ${occupation}`;
+        infoDiv.appendChild(occupationP);
+    }
+    
+    // Cria e adiciona a descrição (se existir)
+    const historia = character.Historia || character.historia || character.history || character.description;
+    if (historia) {
+        const description = document.createElement('p');
+        description.className = 'character-description';
+        // Limita a descrição a 100 caracteres
+        const shortHistory = historia.length > 100 
+            ? historia.substring(0, 100) + '...' 
+            : historia;
+        description.textContent = shortHistory;
+        infoDiv.appendChild(description);
+    }
+    
+    // Adiciona o container de informações ao card
+    card.appendChild(infoDiv);
+    
+    // Adiciona evento de click para mostrar mais detalhes
+    card.addEventListener('click', () => {
+        showCharacterDetails(character);
+    });
+    
+    return card;
+}
+
+/**
+ * Mostra detalhes do personagem em um alert (pode ser melhorado com um modal)
+ */
 function showCharacterDetails(character) {
-    if (!modal || !modalContent) return;
+    const nome = character.Nombre || character.nombre || character.name || 'Nome desconhecido';
+    const ocupacao = character.Ocupacion || character.ocupacion || character.occupation || 'Não informada';
+    const historia = character.Historia || character.historia || character.history || 'Não disponível';
+    const voz = character.VozOriginal || character.vozOriginal || character.voice || 'Não informada';
     
-    modalContent.innerHTML = `
-        <img src="${character.imagen || 'placeholder.jpg'}" alt="${character.nombre || 'Personagem'}">
-        <h2>${character.nombre || 'Nome desconhecido'}</h2>
-        <p><strong>Ocupação:</strong> ${character.ocupacion || 'Desconhecida'}</p>
-        <p><strong>Primeira aparição:</strong> ${character.primera_aparicion || 'Desconhecida'}</p>
-        <p><strong>Dublador:</strong> ${character.doblador || 'Desconhecido'}</p>
-    `;
-    modal.style.display = 'block';
-}
+    const details = `
+🎭 ${nome}
 
-// Função para filtrar personagens
-function filterCharacters() {
-    if (!searchInput) return;
+👔 Ocupação: ${ocupacao}
+
+📖 História: ${historia}
+
+🎤 Voz original: ${voz}
+    `.trim();
     
-    const searchTerm = searchInput.value.toLowerCase();
-    const filteredCharacters = allCharacters.filter(character => 
-        (character.nombre || '').toLowerCase().includes(searchTerm)
-    );
-    displayCharacters(filteredCharacters);
+    alert(details);
 }
 
-// Event Listeners com verificação de null
-if (searchButton) {
-    searchButton.addEventListener('click', filterCharacters);
+/**
+ * Função de busca/filtro de personagens
+ */
+function handleSearch() {
+    if (!searchInput) {
+        console.error('Input de busca não encontrado');
+        return;
+    }
+    
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    
+    if (searchTerm === '') {
+        displayedCharacters = allCharacters;
+    } else {
+        displayedCharacters = allCharacters.filter(character => {
+            const name = (character.Nombre || character.nombre || '').toLowerCase();
+            const occupation = (character.Ocupacion || character.ocupacion || '').toLowerCase();
+            const history = (character.Historia || character.historia || '').toLowerCase();
+            
+            return name.includes(searchTerm) || 
+                   occupation.includes(searchTerm) || 
+                   history.includes(searchTerm);
+        });
+    }
+    
+    renderCharacters(displayedCharacters);
+    updateStats();
 }
 
-if (searchInput) {
-    searchInput.addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') {
-            filterCharacters();
-        }
-    });
+/**
+ * Atualiza as estatísticas
+ */
+function updateStats() {
+    if (totalCharactersElement) {
+        totalCharactersElement.textContent = displayedCharacters.length;
+    }
 }
 
-if (closeModal) {
-    closeModal.addEventListener('click', () => {
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    });
+/**
+ * Funções de controle de UI
+ */
+function showLoading() {
+    if (loadingElement) {
+        loadingElement.style.display = 'block';
+    }
+    if (charactersContainer) {
+        charactersContainer.style.display = 'none';
+    }
 }
 
-if (modal) {
-    window.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.style.display = 'none';
-        }
-    });
+function hideLoading() {
+    if (loadingElement) {
+        loadingElement.style.display = 'none';
+    }
+    if (charactersContainer) {
+        charactersContainer.style.display = 'grid';
+    }
 }
 
-// Carregar personagens ao iniciar
-fetchCharacters();
+function showError() {
+    if (errorElement) {
+        errorElement.style.display = 'block';
+    }
+}
+
+function hideError() {
+    if (errorElement) {
+        errorElement.style.display = 'none';
+    }
+}
+
+// Inicializa a aplicação quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', init);
+
+// Log para debug
+console.log('Script carregado com sucesso!');
