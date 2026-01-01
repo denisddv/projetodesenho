@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simpsons Characters - Projeto Desenho</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🍩 Os Simpsons - Personagens</h1>
+            <p class="subtitle">Explore os personagens icônicos da família mais amarela da TV</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="intro">
+            <h2>Bem-vindo a Springfield!</h2>
+            <p>
+                Os Simpsons é uma série animada americana criada por Matt Groening que estreou em 1989. 
+                A série satiriza a vida da classe média americana através da família Simpson e outros 
+                personagens da cidade fictícia de Springfield.
+            </p>
+        </section>
+
+        <section class="filters">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Buscar personagem...">
+                <button id="searchBtn">Buscar</button>
+            </div>
+        </section>
+
+        <section class="stats">
+            <div class="stat-card">
+                <h3 id="totalCharacters">0</h3>
+                <p>Personagens Carregados</p>
+            </div>
+        </section>
+
+        <section id="characters" class="characters-grid">
+            <!-- Os cards serão inseridos aqui dinamicamente pelo JavaScript -->
+        </section>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando personagens...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            <p>Ops! Não foi possível carregar os personagens. Tente novamente.</p>
+            <button id="retryBtn">Tentar Novamente</button>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 - Projeto Acadêmico - Desenvolvimento Front-End</p>
+            <p>Dados fornecidos por: <a href="https://apisimpsons.fly.dev" target="_blank">API Simpsons</a></p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
